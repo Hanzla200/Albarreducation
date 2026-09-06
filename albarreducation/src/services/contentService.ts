@@ -98,8 +98,8 @@ export const getReviews = () =>
 
 export const getOrders = () => readCollection("orders");
 
-export const getOrdersForUser = (email: string) =>
-  readCollection("orders", `filters[email][$eq]=${encodeURIComponent(email)}`);
+export const getOrdersForUser = () =>
+  readCollection("orders");
 
 export const getLectures = () =>
   readCollection("lectures");
@@ -118,20 +118,51 @@ export const getContacts = () =>
    STRAPI V5
 ========================================================= */
 
+const sanitizeRelationData = (
+  data: Record<string, any>
+): Record<string, any> => {
+  const safeData = { ...data };
+  const relationFields = [
+    "subject",
+    "lecture",
+    "book",
+    "cart",
+  ];
+
+  delete safeData.user;
+  delete safeData.users_permissions_user;
+
+  for (const field of relationFields) {
+    const value = safeData[field];
+
+    if (
+      value !== undefined &&
+      value !== null &&
+      (typeof value === "number" || typeof value === "string")
+    ) {
+      safeData[field] = { connect: [value] };
+    }
+  }
+
+  return safeData;
+};
+
 export const createCollectionItem = async (
   endpoint: string,
   data: Record<string, any>
 ) => {
   try {
+    const safeData = sanitizeRelationData(data);
+
     console.log(
       `📤 Saving ${endpoint} to Strapi...`,
-      data
+      safeData
     );
 
     const response = await api.post(
       `/${endpoint}`,
       {
-        data,
+        data: safeData,
       },
       {
         headers: {
@@ -171,10 +202,11 @@ export const updateItem = async (
   data: Record<string, any>
 ) => {
   try {
+    const safeData = sanitizeRelationData(data);
     const response = await api.put(
       `/${endpoint}/${id}`,
       {
-        data,
+        data: safeData,
       },
       {
         headers: {
@@ -492,8 +524,7 @@ export const createPastPaper = async (
 export const createReview = (
   text: string,
   review: string | number,
-  lectureId?: number,
-  userId?: number
+  lectureId?: number
 ) => {
   const data: Record<string, any> = {
     text,
@@ -502,11 +533,6 @@ export const createReview = (
 
   if (lectureId) {
     data.lecture = lectureId;
-  }
-
-  if (userId) {
-    data.users_permissions_user =
-      userId;
   }
 
   return createCollectionItem(
@@ -670,24 +696,29 @@ export const createOrder = (
   subjectName?: string,
   details?: string
 ) => {
+  const orderData: Record<string, any> = {
+    name,
+    phonenumber,
+    address,
+    email,
+    booktitle:
+      bookTitle ?? null,
+    classlevel:
+      classLevel ?? null,
+    subjectname:
+      subjectName ?? null,
+    details:
+      details ?? null,
+    ordercode:
+      generateOrderCode(),
+  };
+
+  delete orderData.user;
+  delete orderData.users_permissions_user;
+
   return createCollectionItem(
     "orders",
-    {
-      name,
-      phonenumber,
-      address,
-      email,
-      booktitle:
-        bookTitle ?? null,
-      classlevel:
-        classLevel ?? null,
-      subjectname:
-        subjectName ?? null,
-      details:
-        details ?? null,
-      ordercode:
-        generateOrderCode(),
-    }
+    orderData
   );
 };
 
@@ -727,6 +758,9 @@ export const createOrderFromCart = async (
     cart: cartId,
   };
 
+  delete orderData.user;
+  delete orderData.users_permissions_user;
+
   return createCollectionItem(
     "orders",
     orderData
@@ -742,14 +776,14 @@ export const createContactMessage = (
   email: string,
   message: string
 ) => {
-  return createCollectionItem(
-    "contacts",
+  return api.post(
+    "/contacts",
+    { data: { name, email, message } },
     {
-      name,
-      email,
-      message,
+      headers: { "Content-Type": "application/json" },
+      ...( { skipAuth: true } as any ),
     }
-  );
+  ).then((response) => response.data?.data ?? response.data);
 };
 
 export const getComments = (lectureId: string | number) =>
@@ -760,7 +794,8 @@ export const getComments = (lectureId: string | number) =>
 
 export const createComment = async (
   lectureId: string | number,
-  text: string
+  text: string,
+  rating = 5
 ) => {
   const user = getStoredUser();
   const userId = user?.id ?? user?.documentId;
@@ -769,5 +804,5 @@ export const createComment = async (
     throw new Error("You must be logged in to post a comment.");
   }
 
-  return createReview(text, 0, Number(lectureId), Number(userId));
+  return createReview(text, rating, Number(lectureId));
 };

@@ -56,7 +56,7 @@ export default function StudentDashboard() {
             getNotes(),
             getAnnouncements(),
             getPastPapers(),
-            currentUser?.email ? getOrdersForUser(currentUser.email) : Promise.resolve([]),
+            currentUser ? getOrdersForUser() : Promise.resolve([]),
           ]);
 
         setBooks(asArray(booksArr));

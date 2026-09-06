@@ -9,6 +9,7 @@ export default function StudentLecturesPage() {
   const [selectedClass, setSelectedClass] = useState("All");
   const [commentsByLecture, setCommentsByLecture] = useState<Record<string, any[]>>({});
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [ratings, setRatings] = useState<Record<string, number>>({});
   const [commentError, setCommentError] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -35,12 +36,13 @@ export default function StudentLecturesPage() {
 
     setCommentError("");
     try {
-      const saved = await createComment(key, text.trim());
+      const saved = await createComment(key, text.trim(), ratings[key] || 5);
       setCommentsByLecture((prev) => ({
         ...prev,
         [key]: [...(prev[key] || []), saved],
       }));
       setDrafts((prev) => ({ ...prev, [key]: "" }));
+      setRatings((prev) => ({ ...prev, [key]: 5 }));
     } catch (error) {
       setCommentError(error instanceof Error ? error.message : "Unable to post comment.");
     }
@@ -137,7 +139,12 @@ export default function StudentLecturesPage() {
                   <div className="space-y-2 mb-3">
                     {comments.map((c: any, i: number) => (
                       <div key={i} className="bg-gray-800/70 p-2.5 rounded-lg text-sm">
-                        <div className="font-semibold text-cyan-300 text-xs">{c.userName || "Student"}</div>
+                        <div className="font-semibold text-cyan-300 text-xs">
+                          {getRelationField(c, "users_permissions_user", "username") || c.userName || "Student"}
+                        </div>
+                        <div className="text-yellow-400 text-xs" aria-label={`${getField(c, "review") ?? 0} out of 5 stars`}>
+                          {"★".repeat(Math.max(0, Math.min(5, Number(getField(c, "review")) || 0)))}
+                        </div>
                         <div className="text-gray-200 mt-0.5">{c.text}</div>
                         {getField(c, "reply") && (
                           <div className="mt-2 border-l-2 border-emerald-400 pl-2 text-emerald-200">
@@ -147,6 +154,25 @@ export default function StudentLecturesPage() {
                         )}
                       </div>
                     ))}
+                  </div>
+
+                  <div className="mb-3 flex items-center gap-2" role="group" aria-label="Choose a lecture rating">
+                    <span className="text-xs text-gray-400">Your rating:</span>
+                    {[1, 2, 3, 4, 5].map((star) => {
+                      const selected = star <= (ratings[key] || 5);
+                      return (
+                        <button
+                          key={star}
+                          type="button"
+                          aria-label={`${star} star${star === 1 ? "" : "s"}`}
+                          aria-pressed={selected}
+                          onClick={() => setRatings((prev) => ({ ...prev, [key]: star }))}
+                          className={selected ? "text-yellow-400 text-lg" : "text-gray-600 text-lg hover:text-yellow-300"}
+                        >
+                          ★
+                        </button>
+                      );
+                    })}
                   </div>
 
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">

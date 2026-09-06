@@ -199,6 +199,7 @@ async function setupPermissions(strapi: Core.Strapi) {
         'plugin::users-permissions.auth.register',
         'plugin::users-permissions.auth.forgotPassword',
         'plugin::users-permissions.auth.resetPassword',
+        'api::contact.contact.create',
       ]);
     }
 
@@ -212,6 +213,7 @@ async function setupPermissions(strapi: Core.Strapi) {
         { uid: 'api::order.order', actions: ['find', 'findOne', 'create', 'update', 'delete'] },
         { uid: 'api::cart.cart', actions: ['find', 'findOne', 'create', 'update', 'delete'] },
         { uid: 'api::cartitem.cartitem', actions: ['find', 'findOne', 'create', 'update', 'delete'] },
+        { uid: 'api::contact.contact', actions: ['create'] },
       ], [
         'plugin::users-permissions.user.me',
       ]);

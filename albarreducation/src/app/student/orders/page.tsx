@@ -17,7 +17,7 @@ export default function StudentOrdersPage() {
       return;
     }
 
-    getOrdersForUser(user.email)
+    getOrdersForUser()
       .then((data) => setItems(asArray(data)))
       .finally(() => setLoading(false));
   }, []);

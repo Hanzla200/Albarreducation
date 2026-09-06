@@ -3,7 +3,7 @@ import { factories } from '@strapi/strapi';
 const isAdmin = (user: any) =>
   user?.email === process.env.ADMIN_EMAIL || user?.username === 'admin';
 
-export default factories.createCoreController('api::order.order', () => ({
+export default factories.createCoreController('api::order.order', ({ strapi }) => ({
   async find(ctx: any) {
     if (!ctx.state.user) return ctx.unauthorized('Login required.');
     if (!isAdmin(ctx.state.user)) {
@@ -30,12 +30,29 @@ export default factories.createCoreController('api::order.order', () => ({
   async create(ctx: any) {
     if (!ctx.state.user) return ctx.unauthorized('Login required.');
     ctx.request.body = ctx.request.body || {};
+    const payload = { ...(ctx.request.body.data || {}) };
+
+    delete payload.user;
+    delete payload.users_permissions_user;
+
     ctx.request.body.data = {
-      ...(ctx.request.body.data || {}),
-      user: ctx.state.user.id,
+      ...payload,
       email: ctx.state.user.email,
     };
-    return super.create(ctx);
+    const result = await super.create(ctx);
+    const documentId = result?.data?.documentId;
+    const userDocumentId = ctx.state.user.documentId || ctx.state.user.id;
+
+    if (documentId && userDocumentId) {
+      await strapi.documents('api::order.order').update({
+        documentId,
+        data: {
+          user: { connect: [userDocumentId] },
+        } as any,
+      });
+    }
+
+    return result;
   },
 
   async update(ctx: any) {

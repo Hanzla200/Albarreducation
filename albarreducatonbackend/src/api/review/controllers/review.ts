@@ -3,7 +3,7 @@ import { factories } from '@strapi/strapi';
 const isAdmin = (user: any) =>
   user?.email === process.env.ADMIN_EMAIL || user?.username === 'admin';
 
-export default factories.createCoreController('api::review.review', () => ({
+export default factories.createCoreController('api::review.review', ({ strapi }) => ({
   async find(ctx: any) {
     if (!ctx.state.user) return ctx.unauthorized('Login required.');
     return super.find(ctx);
@@ -11,12 +11,19 @@ export default factories.createCoreController('api::review.review', () => ({
 
   async create(ctx: any) {
     if (!ctx.state.user) return ctx.unauthorized('Login required.');
-    ctx.request.body = ctx.request.body || {};
-    ctx.request.body.data = {
-      ...(ctx.request.body.data || {}),
-      users_permissions_user: ctx.state.user.id,
-    };
-    return super.create(ctx);
+    const result = await super.create(ctx);
+    const reviewId = result?.data?.id;
+
+    if (reviewId) {
+      await strapi.db.query('api::review.review').update({
+        where: { id: reviewId },
+        data: {
+          users_permissions_user: ctx.state.user.id,
+        },
+      });
+    }
+
+    return result;
   },
 
   async update(ctx: any) {

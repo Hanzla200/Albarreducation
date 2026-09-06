@@ -6,7 +6,10 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  if (typeof window !== "undefined") {
+  if (
+    typeof window !== "undefined" &&
+    !(config as typeof config & { skipAuth?: boolean }).skipAuth
+  ) {
     const jwt = localStorage.getItem("jwt");
     if (jwt) {
       config.headers = config.headers ?? {};

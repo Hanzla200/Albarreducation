@@ -5,9 +5,14 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { createOrder } from "../../services/contentService";
 import { getField } from "../../utils/strapi";
-import { getCartStorageKey, getStoredUser } from "../../lib/auth";
+import { createCompleteCart } from "../../services/contentService";
+import {
+  getCartStorageKey,
+  getStoredJwt,
+  getStoredUser,
+  logoutUser,
+} from "../../lib/auth";
 
 export default function CartPage() {
   const [items, setItems] = useState<any[]>([]);
@@ -29,8 +34,9 @@ export default function CartPage() {
   useEffect(() => {
     try {
       const user = getStoredUser();
+      const jwt = getStoredJwt();
 
-      if (user) {
+      if (user && jwt) {
         setIsLoggedIn(true);
 
         if (user.username) {
@@ -41,17 +47,19 @@ export default function CartPage() {
           setEmail(user.email);
         }
 
-        // Load cart only for logged-in users
+        // Load cart only for authenticated users with a valid JWT
         const stored = JSON.parse(
           localStorage.getItem(getCartStorageKey(user)) || "[]"
         );
 
         setItems(Array.isArray(stored) ? stored : []);
       } else {
+        logoutUser();
         setIsLoggedIn(false);
         setItems([]);
       }
     } catch {
+      logoutUser();
       setIsLoggedIn(false);
       setItems([]);
     } finally {
@@ -120,9 +128,11 @@ export default function CartPage() {
     e.preventDefault();
 
     // Check login
-    if (!isLoggedIn) {
+    if (!isLoggedIn || !getStoredJwt()) {
+      logoutUser();
+      setIsLoggedIn(false);
       setMessage(
-        "Please login before placing an order."
+        "Your session expired. Please login again before placing an order."
       );
       return;
     }
@@ -152,28 +162,10 @@ export default function CartPage() {
     setMessage("");
 
     try {
-      // ==========================================
-      // SAVE ORDERS TO STRAPI
-      // ==========================================
-
-      for (const item of items) {
-        const title =
-          getField(item, "title") ??
-          "Book";
-
-        const level =
-          getField(item, "classlevel") ??
-          "General";
-
-        await createOrder(
-          name.trim(),
-          phone.trim(),
-          address.trim(),
-          email.trim(),
-          title,
-          level
-        );
-      }
+      const whatsappName = name.trim();
+      const whatsappPhone = phone.trim();
+      const whatsappAddress = address.trim();
+      const whatsappEmail = email.trim();
 
       // ==========================================
       // CREATE BOOK DETAILS FOR WHATSAPP
@@ -215,15 +207,15 @@ export default function CartPage() {
         `📚 *NEW BOOK ORDER - AI Academy*\n\n` +
 
         `👤 *CUSTOMER DETAILS*\n` +
-        `Name: ${name.trim()}\n` +
-        `Email: ${email.trim()}\n` +
-        `Phone: ${phone.trim()}\n` +
-        `Address: ${address.trim()}\n\n` +
+        `Name: ${whatsappName}\n` +
+        `Email: ${whatsappEmail}\n` +
+        `Phone: ${whatsappPhone}\n` +
+        `Address: ${whatsappAddress}\n\n` +
 
         `📖 *BOOKS ORDERED*\n\n` +
         `${bookDetails}\n\n` +
 
-        `💰 *TOTAL: PKR ${total}*\n` +
+        `💰 *TOTAL ORDER: PKR ${total}*\n` +
         `💵 Payment: Cash on Delivery`;
 
       // ==========================================
@@ -245,6 +237,19 @@ export default function CartPage() {
         encodeURIComponent(
           whatsappMessage
         );
+
+      const user = getStoredUser();
+      const cartBooks = items.map((item: any) => ({
+        bookId: Number(getField(item, "id")),
+        quantity: Number(getField(item, "quantity")) || 1,
+        price: Number(getField(item, "price")) || 0,
+      }));
+
+      if (cartBooks.some((item) => !item.bookId)) {
+        throw new Error("One or more cart books are missing an ID.");
+      }
+
+      await createCompleteCart(cartBooks, Number(user?.id));
 
       // ==========================================
       // CLEAR CART
