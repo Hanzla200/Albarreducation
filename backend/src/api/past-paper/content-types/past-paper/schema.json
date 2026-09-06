@@ -1,0 +1,84 @@
+{
+  "kind": "collectionType",
+  "collectionName": "past_papers",
+  "info": {
+    "singularName": "past-paper",
+    "pluralName": "past-papers",
+    "displayName": "PastPaper"
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {
+    "i18n": {
+      "localized": true
+    }
+  },
+  "attributes": {
+    "subject": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::subject.subject",
+      "inversedBy": "past_papers"
+    },
+    "classlevel": {
+      "type": "string",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
+    },
+    "title": {
+      "type": "string",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
+    },
+    "boards": {
+      "type": "enumeration",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      },
+      "enum": [
+        "BISE Lahore",
+        "BISE Rawalpindi",
+        "BISE Faisalabad",
+        "BISE Gujranwala",
+        "BISE Multan",
+        "BISE Sargodha",
+        "BISE Bahawalpur",
+        "BISE DG Khan",
+        "BISE Sahiwal"
+      ]
+    },
+    "year": {
+      "type": "integer",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      }
+    },
+    "file": {
+      "type": "media",
+      "pluginOptions": {
+        "i18n": {
+          "localized": true
+        }
+      },
+      "multiple": true,
+      "required": false,
+      "allowedTypes": [
+        "images",
+        "files",
+        "videos",
+        "audios"
+      ]
+    }
+  }
+}
